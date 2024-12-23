@@ -208,8 +208,8 @@ Then you can send requests to the deployed service on Cloud Run, using the `SERV
   ```
 
 - Using a Service Account with Cloud Run Invoke access, which can either be done with any of the following approaches:
-  - Create a Service Account before the Cloud Run Service was created, and then set the `--service-account` flag to the Service Account email when creating the Cloud Run Service. And use an Access Token for that Service Account only using `gcloud auth print-access-token --impersonate-service-account=SERVICE_ACCOUNT_EMAIL`.
-  - Create a Service Account after the Cloud Run Service was created, and then update the Cloud Run Service to use the Service Account. And use an Access Token for that Service Account only using `gcloud auth print-access-token --impersonate-service-account=SERVICE_ACCOUNT_EMAIL`.
+  - Create a Service Account before the Cloud Run Service was created, and then set the `--service-account` flag to the Service Account email when creating the Cloud Run Service. And use an Access Token for that Service Account only using `gcloud auth print-identity-token --impersonate-service-account=SERVICE_ACCOUNT_EMAIL`.
+  - Create a Service Account after the Cloud Run Service was created, and then update the Cloud Run Service to use the Service Account. And use an Access Token for that Service Account only using `gcloud auth print-identity-token --impersonate-service-account=SERVICE_ACCOUNT_EMAIL`.
 
 The recommended approach is to use a Service Account (SA), as the access can be controlled better and the permissions are more granular; as the Cloud Run Service was not created using a SA, which is another nice option, you need to now create the SA, gran it the necessary permissions, update the Cloud Run Service to use the SA, and then generate an access token to set as the authentication token within the requests, that can be revoked later once you are done using it.
 
@@ -234,16 +234,13 @@ The recommended approach is to use a Service Account (SA), as the access can be 
       --region=$LOCATION
   ```
 
-- Generate the Access Token for the Service Account:
+- Generate the ID Token for the Service Account:
 
   ```bash
-  export ACCESS_TOKEN=$(gcloud auth print-access-token --impersonate-service-account=$SERVICE_ACCOUNT_NAME@$PROJECT_ID.iam.gserviceaccount.com)
+  export ID_TOKEN=$(gcloud auth print-identity-token --impersonate-service-account=$SERVICE_ACCOUNT_NAME@$PROJECT_ID.iam.gserviceaccount.com)
   ```
 
-> [!WARNING]
-> The access token is short-lived and will expire, by default after 1 hour. If you want to extend the token lifetime beyond the default, you must create and organization policy and use the `--lifetime` argument when createing the token. Refer to [Access token lifetime](https://cloud.google.com/resource-manager/docs/organization-policy/restricting-service-accounts#extend_oauth_ttl) to learn more. Otherwise, you can also generate a new token by running the same command again.
-
-Now you can already dive into the different alternatives for sending the requests to the deployed Cloud Run Service using the `SERVICE_URL` AND `ACCESS_TOKEN` as described above.
+Now you can already dive into the different alternatives for sending the requests to the deployed Cloud Run Service using the `SERVICE_URL` AND `ID_TOKEN` as described above.
 
 > [!NOTE]
 > Note that the examples below are using the `/v1/chat/completions` TGI endpoint with is OpenAI-compatible, meaning that both `cURL` and Python are just some proposals, but any OpenAI-compatible client can be used instead.
@@ -255,7 +252,7 @@ To send a POST request to the TGI service using `cURL`, you can run the followin
 ```bash
 curl $SERVICE_URL/v1/chat/completions \
     -X POST \
-    -H "Authorization: Bearer $ACCESS_TOKEN" \
+    -H "Authorization: Bearer $ID_TOKEN" \
     -H 'Content-Type: application/json' \
     -d '{
         "model": "tgi",
@@ -287,7 +284,7 @@ from huggingface_hub import InferenceClient
 
 client = InferenceClient(
     base_url=os.getenv("SERVICE_URL"),
-    api_key=os.getenv("ACCESS_TOKEN"),
+    api_key=os.getenv("ID_TOKEN"),
 )
 
 chat_completion = client.chat.completions.create(
@@ -310,7 +307,7 @@ from openai import OpenAI
 
 client = OpenAI(
     base_url=os.getenv("SERVICE_URL"),
-    api_key=os.getenv("ACCESS_TOKEN"),
+    api_key=os.getenv("ID_TOKEN"),
 )
 
 chat_completion = client.chat.completions.create(
@@ -333,9 +330,9 @@ To delete the Cloud Run Service you can either go to the Google Cloud Console at
 gcloud run services delete $SERVICE_NAME --region $LOCATION
 ```
 
-Additionally, if you followed the steps in [via Cloud Run Service URL](#via-cloud-run-service-url) and generated a Service Account and an access token, you can either remove the Service Account, or just revoke the access token if it is still valid.
+Additionally, if you followed the steps in [via Cloud Run Service URL](#via-cloud-run-service-url) and generated a Service Account and an identity token, you can either remove the Service Account, or just revoke the identity token if it is still valid.
 
-- (recommended) Revoke the Access Token as
+- (recommended) Revoke the ID Token as
 
 ```bash
 gcloud auth revoke --impersonate-service-account=$SERVICE_ACCOUNT_NAME@$PROJECT_ID.iam.gserviceaccount.com
